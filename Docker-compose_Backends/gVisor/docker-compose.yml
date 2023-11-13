@@ -1,0 +1,94 @@
+version: '3'
+services:
+  web:
+    container_name: 'delifood'
+    build: .
+    runtime: runsc
+    ports:
+      - '3000:3000'
+    #networks:
+      #- strapi
+    network_mode: "bridge"
+
+  nginx:
+    image: 'nginx:alpine'
+    container_name: nginx
+    runtime: runsc
+    restart: always
+    ports:
+      - '80:80'
+    volumes:
+      - ./web_servers/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    links:
+      - web
+    #networks:
+      #- strapi
+    network_mode: "bridge"
+      
+  apache:
+    image: 'httpd:latest'
+    container_name: apache
+    runtime: runsc
+    restart: always
+    ports:
+      - '81:80'
+    volumes:
+      - ./web_servers/apache/backup.conf:/usr/local/apache2/conf/httpd.conf
+    links:
+      - web
+    #networks:
+      #- strapi
+    network_mode: "bridge"
+
+  strapi:
+    container_name: 'strapi'
+    image: 'strapi/strapi:alpine'
+    runtime: runsc
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_CLIENT: ${DATABASE_CLIENT}
+      DATABASE_HOST: "172.17.0.1" #${DATABASE_HOST}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      NODE_ENV: ${NODE_ENV}
+    volumes:
+      - ./app:/srv/app
+    ports:
+      - '1337:1337'
+    #networks:
+      #- strapi
+    #depends_on:
+      #- mysql
+    network_mode: "bridge"
+
+  mysql:
+    container_name: 'mysql'
+    image: 'mysql:5.7'
+    runtime: runsc
+    restart: unless-stopped
+    env_file: .env
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_USER: ${DATABASE_USERNAME}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+      MYSQL_DATABASE: ${DATABASE_NAME}
+    volumes:
+      - ./data:/var/lib/mysql
+    ports:
+      - '3306:3306'
+    #networks:
+      #- strapi
+    network_mode: "bridge"
+      
+volumes:
+  strapi-data:
+  
+#networks:
+#  strapi:    
+#    ipam:
+#      config:        
+#        - subnet: 192.168.100.0/24
